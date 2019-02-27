@@ -1,3 +1,7 @@
+//Sarabjeet: [Calculate number of reads issued after refresh period expired]
+//Sarabjeet: [Print Cache Activity]
+//Sarabjeet: [Print Cache Writes - Data]
+
 This is the source code for the Sniper multicore simulator developed
 by the Performance Lab research group at Ghent University, Belgium.
 Please refer to the NOTICE file in the top level directory for
