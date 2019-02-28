@@ -179,6 +179,15 @@ namespace ParametricDramDirectoryMSI
             String replacement_policy, CacheBase::hash_t hash_function);
          void accessATDs(Core::mem_op_t mem_op_type, bool hit, IntPtr address, UInt32 core_num);
 
+
+         //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining unorderdered map to store last writes/inserts of each cache address (in Master Cache Cntlr so shared L3 only has 1 map)
+         std::unordered_map<IntPtr, SubsecondTime> map_lastwrites;
+
+         struct {
+            //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining stats variable
+           UInt64 ReadsAfterRefreshPeriod;
+        } stats;
+
          CacheMasterCntlr(String name, core_id_t core_id, UInt32 outstanding_misses)
             : m_cache(NULL)
             , m_prefetcher(NULL)
@@ -191,7 +200,9 @@ namespace ParametricDramDirectoryMSI
             , m_atds()
             , m_prefetch_list()
             , m_prefetch_next(SubsecondTime::Zero())
-         {}
+         {
+            registerStatsMetric(name, core_id, "ReadsAfterRefreshPeriod", &stats.ReadsAfterRefreshPeriod);
+         }
          ~CacheMasterCntlr();
 
          friend class CacheCntlr;
@@ -215,9 +226,6 @@ namespace ParametricDramDirectoryMSI
          bool m_l1_mshr;
 
          struct {
-            //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining stats variable
-           UInt64 ReadsAfterRefreshPeriod;
-
            UInt64 loads, stores;
            UInt64 load_misses, store_misses;
            UInt64 load_overlapping_misses, store_overlapping_misses;
@@ -349,8 +357,16 @@ namespace ParametricDramDirectoryMSI
 
          CacheCntlr* lastLevelCache(void);
 
-         //Sarabjeet: [Calculate number of reads issued after refresh period expired] Function to compare the time between Read and prev Write
+         //Sarabjeet: [Calculate number of reads issued after refresh period expired] Functions
          bool CalculateIfValid(IntPtr, SubsecondTime);
+         void RecordRead(IntPtr);
+         void RecordWrite(IntPtr);
+
+         //Sarabjeet: [Print Cache Activity] Functions
+         void PrintTrace_CacheActivity(IntPtr, int);
+
+         //Sarabjeet: [Print Cache Writes - Data] Functions
+         void PrintTrace_CacheWriteData(IntPtr);
 
       public:
 
@@ -368,8 +384,6 @@ namespace ParametricDramDirectoryMSI
 
          virtual ~CacheCntlr();
 
-         //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining unorderdered map to store last writes/inserts of each cache address
-         std::unordered_map<IntPtr, SubsecondTime> map_lastwrites;
 
          Cache* getCache() { return m_master->m_cache; }
          Lock& getLock() { return m_master->m_cache_lock; }

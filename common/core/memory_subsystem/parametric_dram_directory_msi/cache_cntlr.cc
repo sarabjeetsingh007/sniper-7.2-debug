@@ -16,6 +16,7 @@
 #include <fstream>
 
 //Sarabjeet: [Print Cache Writes - Data] FORMAT: "Address CachelineData(64bytes)"
+//TODO: Create different files for different core, in case of private caches
 bool trace_WriteData=false;   //Switch on to generate write Data traces
 std::ofstream tracewriteL1I;
 std::ofstream tracewriteL1D;
@@ -23,6 +24,7 @@ std::ofstream tracewriteL2;
 std::ofstream tracewriteL3;
 
 //Sarabjeet: [Print Cache Activity] FORMAT: "Address timestamp ACTION"; (ACTION: 0=Read, 1=Write, 3=Invalidate)
+//TODO: Create different files for different core, in case of private caches
 bool trace_CachelineActivity=false;     //Switch on to generate traces of activity on cacheline
 std::ofstream traceactivityL1I;
 std::ofstream traceactivityL1D;
@@ -271,9 +273,6 @@ CacheCntlr::CacheCntlr(MemComponent::component_t mem_component,
       m_prefetch_on_prefetch_hit = Sim()->getCfg()->getBoolArray("perf_model/" + cache_params.configName + "/prefetcher/prefetch_on_prefetch_hit", core_id);
 
    bzero(&stats, sizeof(stats));
-
-   //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining the stat variable
-   registerStatsMetric(name, core_id, "ReadsAfterRefreshPeriod", &stats.ReadsAfterRefreshPeriod);
 
    registerStatsMetric(name, core_id, "loads", &stats.loads);
    registerStatsMetric(name, core_id, "stores", &stats.stores);
@@ -1295,26 +1294,6 @@ MYLOG("SH REQ @ %lx", address);
          HitWhere::UNKNOWN, m_shmem_perf, ShmemPerfModel::_USER_THREAD);
 }
 
-
-/*****************************************************************************
-//Sarabjeet: [Calculate number of reads issued after refresh period expired]
- Function to check if the time difference between last Write and the issued Read is greater than Refresh Period
- *****************************************************************************/
-
-bool
-CacheCntlr::CalculateIfValid(IntPtr addr, SubsecondTime last_time)
-{
-	if( (((getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD)).getTimeStamp()-last_time.getTimeStamp()) > REFRESH_INTERVAL) && (((getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD)).getTimeStamp()-last_time.getTimeStamp()) < MAXLIMIT) )
-	{
-		// std::cout<<last_time<<" - "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<std::endl;
-		// std::cout<<"[OVERFLOW] Gap = "<<((getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD)).getTimeStamp()-last_time.getTimeStamp())<<std::endl;
-		return true;
-	}
-	return false;
-}
-
-
-
 /*****************************************************************************
  * internal operations called by cache on itself
  *****************************************************************************/
@@ -1351,6 +1330,100 @@ CacheCntlr::operationPermissibleinCache(
 }
 
 /*****************************************************************************
+//Sarabjeet: [Print Cache Writes - Data] Function to print cache write data
+ *****************************************************************************/
+
+void
+CacheCntlr::PrintTrace_CacheWriteData(IntPtr addr)
+{
+	long long unsigned int* addrp = (long long unsigned int*)addr;
+
+	if(m_mem_component==2)
+		tracewriteL1I <<addr<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
+	else if(m_mem_component==3)
+		tracewriteL1D <<addr<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
+	else if(m_mem_component==4)
+		tracewriteL2 << addr<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
+	else if(m_mem_component==5)
+		tracewriteL3 << addr<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
+	else
+		printf("ERROR\n");
+}
+
+
+/*****************************************************************************
+//Sarabjeet: [Print Cache Activity] Function to print cache activity trace
+ *****************************************************************************/
+
+void
+CacheCntlr::PrintTrace_CacheActivity(IntPtr addr, int type)
+{
+	/*	type:	0 = Read
+				1 = Write
+				2 = Evict
+				3 = Invalidate
+	*/
+ 	if(m_mem_component==2)
+       traceactivityL1I <<addr<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" "<<type<<std::endl;
+    else if(m_mem_component==3)
+       traceactivityL1D <<addr<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" "<<type<<std::endl;
+    else if(m_mem_component==4)
+       traceactivityL2 << addr<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" "<<type<<std::endl;
+    else if(m_mem_component==5)
+       traceactivityL3 << addr<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" "<<type<<std::endl;
+    else
+       printf("ERROR\n");
+}
+
+/*****************************************************************************
+//Sarabjeet: [Calculate number of reads issued after refresh period expired]
+ Function to check if the time difference between last Write and the issued Read is greater than Refresh Period
+ *****************************************************************************/
+
+bool
+CacheCntlr::CalculateIfValid(IntPtr addr, SubsecondTime last_time)
+{
+	if( (((getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD)).getTimeStamp()-last_time.getTimeStamp()) > REFRESH_INTERVAL) && (((getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD)).getTimeStamp()-last_time.getTimeStamp()) < MAXLIMIT) )
+		return true;
+	return false;
+}
+
+/*****************************************************************************
+//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Read
+ Function to Record Reads
+ *****************************************************************************/
+
+void
+CacheCntlr::RecordRead(IntPtr addr)
+{
+ 	std::unordered_map<IntPtr, SubsecondTime>::iterator iter = m_master->map_lastwrites.find(addr);
+ 	if( iter != m_master->map_lastwrites.end() )
+ 	{
+ 		if(CalculateIfValid(iter->first,iter->second))
+ 		{	
+ 			m_master->stats.ReadsAfterRefreshPeriod++;
+ 			iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));	//Makes sure it only counts one Invalidation
+ 			//invalidateCacheBlock(addr); 	//to implement No Refresh Policy, invalidate 
+ 		}
+ 	}
+}
+
+/*****************************************************************************
+//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
+ Function to Record Writes
+ *****************************************************************************/
+
+void
+CacheCntlr::RecordWrite(IntPtr addr)
+{
+	std::unordered_map<IntPtr, SubsecondTime>::iterator iter = m_master->map_lastwrites.find(addr);
+	if ( iter == m_master->map_lastwrites.end() )		//New entry
+		m_master->map_lastwrites.insert(std::make_pair(addr,(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))));
+	else
+		iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));
+}
+
+/*****************************************************************************
  * sarab: called by L1 (both L1 miss and hit), to get data from L1 cache. (On L1 miss, data is copied from higher levels to L1 and then read from L1)
  *****************************************************************************/
 
@@ -1366,34 +1439,15 @@ CacheCntlr::accessCache(
          m_master->m_cache->accessSingleLine(ca_address + offset, Cache::LOAD, data_buf, data_length,
                                              getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD), update_replacement);
 
-         //Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Read
-         if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-         {
-         	std::unordered_map<IntPtr, SubsecondTime>::iterator iter = map_lastwrites.find(ca_address);
-         	if( iter != map_lastwrites.end() )
-         	{
-         		if(CalculateIfValid(iter->first,iter->second))
-         		{	
-         			stats.ReadsAfterRefreshPeriod++;
-         			iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));	//Makes sure it only counts one Invalidation
-         		}
-         	}
-         }
-
          //Sarabjeet: [Print Cache Activity] Print read activity of L1
          if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
          {
-            if(m_mem_component==2)
-               traceactivityL1I <<ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-            else if(m_mem_component==3)
-               traceactivityL1D <<ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-            else if(m_mem_component==4)
-               traceactivityL2 << ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-            else if(m_mem_component==5)
-               traceactivityL3 << ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-            else
-               printf("ERROR\n");
+            PrintTrace_CacheActivity(ca_address,0);
          }
+
+         //Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Read
+         if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+         	RecordRead(ca_address);
 
          break;
 
@@ -1404,49 +1458,18 @@ CacheCntlr::accessCache(
 
          //Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
          if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-         {
-         	std::unordered_map<IntPtr, SubsecondTime>::iterator iter = map_lastwrites.find(ca_address);
-         	if ( iter == map_lastwrites.end() )		//New entry
-         		map_lastwrites.insert(std::make_pair(ca_address,(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))));
-         	else
-         		iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));
-         }
+ 	        RecordWrite(ca_address);
 
          //Sarabjeet: [Print Cache Activity] Print write activity of L1
          if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
          {
-            if(m_mem_component==2)
-               traceactivityL1I <<ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-            else if(m_mem_component==3)
-               traceactivityL1D <<ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-            else if(m_mem_component==4)
-               traceactivityL2 << ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-            else if(m_mem_component==5)
-               traceactivityL3 << ca_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-            else
-               printf("ERROR\n");
+            PrintTrace_CacheActivity(ca_address,1);
          }
 
-      	// Sarabjeet: [Print Cache Writes - Data] Print all writes-data (64 Bytes of cacheline) to L1 cache (generally no writes to L1I)
+      	//Sarabjeet: [Print Cache Writes - Data] Print all writes-data (64 Bytes of cacheline) to L1 cache (generally no writes to L1I)
          if(trace_WriteData && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
          {
-            long long unsigned int* addrp = (long long unsigned int*)ca_address;
-         	// std::cout<<m_mem_component<<" "<<ca_address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-
-            // ogzstream rpout("sigma.gz");
-            // rpout << "Snoopy"<< endl;
-            // rpout.close();
-            // std::cout<<"snoop\n";
-            if(m_mem_component==2)
-            	tracewriteL1I <<ca_address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-            else if(m_mem_component==3)
-            	tracewriteL1D <<ca_address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-            else if(m_mem_component==4)
-            	tracewriteL2 << ca_address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-            else if(m_mem_component==5)
-            	tracewriteL3 << ca_address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-            else
-            	printf("ERROR\n");
+            PrintTrace_CacheWriteData(ca_address);
          }
 
          // Write-through cache - Write the next level cache also
@@ -1510,16 +1533,7 @@ CacheCntlr::invalidateCacheBlock(IntPtr address)
    //Sarabjeet: [Print Cache Activity] Print invalidates
    if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
    {
-      if(m_mem_component==2)
-         traceactivityL1I <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 3\n";
-      else if(m_mem_component==3)
-         traceactivityL1D <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 3\n";
-      else if(m_mem_component==4)
-         traceactivityL2 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 3\n";
-      else if(m_mem_component==5)
-         traceactivityL3 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 3\n";
-      else
-         printf("ERROR\n");
+      PrintTrace_CacheActivity(address,3);
    }
 
    if (m_next_cache_cntlr)
@@ -1539,34 +1553,15 @@ CacheCntlr::retrieveCacheBlock(IntPtr address, Byte* data_buf, ShmemPerfModel::T
       address, Cache::LOAD, data_buf, getCacheBlockSize(), getShmemPerfModel()->getElapsedTime(thread_num), update_replacement);
    LOG_ASSERT_ERROR(cache_block_info != NULL, "Expected block to be there but it wasn't");
 
-	//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Read
-	if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-	{
-		std::unordered_map<IntPtr, SubsecondTime>::iterator iter = map_lastwrites.find(address);
-		if( iter != map_lastwrites.end() )
-		{
-			if(CalculateIfValid(iter->first,iter->second))
-			{	
-				stats.ReadsAfterRefreshPeriod++;
-				iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));	//Makes sure it only counts one Invalidation
-			}
-		}
-	}
-
    //Sarabjeet: [Print Cache Activity] Print read activity when data is read from higher level of caches
    if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
    {
-      if(m_mem_component==2)
-         traceactivityL1I <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-      else if(m_mem_component==3)
-         traceactivityL1D <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-      else if(m_mem_component==4)
-         traceactivityL2 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-      else if(m_mem_component==5)
-         traceactivityL3 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 0\n";
-      else
-         printf("ERROR\n");
+   		PrintTrace_CacheActivity(address,0);
    }
+
+	//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Read
+   if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+	   RecordRead(address);
 }
 
 
@@ -1591,46 +1586,19 @@ MYLOG("insertCacheBlock l%d @ %lx as %c (now %c)", m_mem_component, address, CSt
    SharedCacheBlockInfo* cache_block_info = setCacheState(address, cstate);
 
 	//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
-	if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-	{
-		std::unordered_map<IntPtr, SubsecondTime>::iterator iter = map_lastwrites.find(address);
-		if ( iter == map_lastwrites.end() )		//New entry
-			map_lastwrites.insert(std::make_pair(address,(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))));
-		else
-			iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));
-	}
+   if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+	   RecordWrite(address);
 
    //Sarabjeet: [Print Cache Activity] Print write activity when new block is brought to higher level of caches
    if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
    {
-      if(m_mem_component==2)
-         traceactivityL1I <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else if(m_mem_component==3)
-         traceactivityL1D <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else if(m_mem_component==4)
-         traceactivityL2 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else if(m_mem_component==5)
-         traceactivityL3 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else
-         printf("ERROR\n");
+      PrintTrace_CacheActivity(address,1);
    }
 
-  	// Sarabjeet: [Print Cache Writes - Data] Prints new cacheline data (64 Bytes) that are brought from higher level to lowel level of cache. (Example: L3 to L2)
+  	//Sarabjeet: [Print Cache Writes - Data] Prints new cacheline data (64 Bytes) that are brought from higher level to lowel level of cache. (Example: L3 to L2)
 	if(trace_WriteData && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
    {
-      long long unsigned int* addrp = (long long unsigned int*)address;
-      // std::cout<<m_mem_component<<" "<<address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-
-      if(m_mem_component==2)
-      	tracewriteL1I <<address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-      else if(m_mem_component==3)
-      	tracewriteL1D <<address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-      else if(m_mem_component==4)
-      	tracewriteL2 << address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-      else if(m_mem_component==5)
-      	tracewriteL3 << address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-      else
-      	printf("ERROR\n");
+      PrintTrace_CacheWriteData(address);
    }
 
    if (Sim()->getInstrumentationMode() == InstMode::CACHE_ONLY)
@@ -1651,16 +1619,7 @@ MYLOG("evicting @%lx", evict_address);
       //Sarabjeet: [Print Cache Activity] Print all evictions when new data is written
       if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
       {
-         if(m_mem_component==2)
-            traceactivityL1I <<evict_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 2\n";
-         else if(m_mem_component==3)
-            traceactivityL1D <<evict_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 2\n";
-         else if(m_mem_component==4)
-            traceactivityL2 << evict_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 2\n";
-         else if(m_mem_component==5)
-            traceactivityL3 << evict_address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 2\n";
-         else
-            printf("ERROR\n");
+         PrintTrace_CacheActivity(evict_address,2);
       }
 
       if (
@@ -1996,47 +1955,20 @@ assert(data_length==getCacheBlockSize());
    }
 
 	//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
-	if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-	{
-		std::unordered_map<IntPtr, SubsecondTime>::iterator iter = map_lastwrites.find(address);
-		if ( iter == map_lastwrites.end() )		//New entry
-			map_lastwrites.insert(std::make_pair(address,(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))));
-		else
-			iter->second=(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD));
-	}
+   if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+	   RecordWrite(address);
 
    //Sarabjeet: [Print Cache Activity] Print write activity when data is written to higher level of caches, if write-through
    if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
    {
-      if(m_mem_component==2)
-         traceactivityL1I <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else if(m_mem_component==3)
-         traceactivityL1D <<address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else if(m_mem_component==4)
-         traceactivityL2 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else if(m_mem_component==5)
-         traceactivityL3 << address<<" "<<(getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD))<<" 1\n";
-      else
-         printf("ERROR\n");
+      PrintTrace_CacheActivity(address,1);
    }
 
-  	// Sarabjeet: [Print Cache Writes - Data] Prints this write data (64 Bytes) -> Whenever there is a store operation (on L1), the store is propagated to higher level of caches/memory, if write-through  
+  	//Sarabjeet: [Print Cache Writes - Data] Prints this write data (64 Bytes) -> Whenever there is a store operation (on L1), the store is propagated to higher level of caches/memory, if write-through  
 	if(trace_WriteData && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-   {  
-     long long unsigned int* addrp = (long long unsigned int*)address;
-	  // std::cout<<m_mem_component<<" "<<address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-
-     if(m_mem_component==2)
-     	tracewriteL1I <<address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-     else if(m_mem_component==3)
-     	tracewriteL1D <<address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-     else if(m_mem_component==4)
-     	tracewriteL2 << address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-     else if(m_mem_component==5)
-     	tracewriteL3 << address<<" "<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+1)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+2)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+3)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+4)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+5)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+6)))<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp+7)))<<std::endl;
-     else
-     	printf("ERROR\n");
-   }
+	{  
+		PrintTrace_CacheWriteData(address);
+	}
 
    if (m_cache_writethrough) {
       acquireStackLock(true);

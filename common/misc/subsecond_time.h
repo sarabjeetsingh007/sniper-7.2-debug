@@ -217,7 +217,7 @@ private:
    uint64_t m_time;
 
 public:
-   UInt64 getTimeStamp() { return m_time;}
+   UInt64 getTimeStamp() { return m_time;}   //Sarabjeet
 };
 
 // Define addition between SubsecondTime instances
