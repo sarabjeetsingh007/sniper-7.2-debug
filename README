@@ -1,6 +1,13 @@
 //Sarabjeet: [Print Cache Writes - Data] FORMAT: "Address CachelineData(64bytes)"
+//TODO: Create different files for different core, in case of private caches
+
 //Sarabjeet: [Print Cache Activity] FORMAT: "Address timestamp ACTION"; (ACTION: 0=Read, 1=Write, 3=Invalidate)
+//TODO: Create different files for different core, in case of private caches
+
 //Sarabjeet: [Calculate number of reads issued after refresh period expired] Records the number of times Reads are issued after Refresh Period has expired (L*.ReadsAfterRefreshPeriod)
+
+//Sarabjeet: [Calculate dissimilarity between consecutive writes] NOTE: Works only for 64 Bytes Cachelines
+//NOTE: Does not record conflict writes. Doesn't consider multiple ways.
 
 Cloned from http://snipersim.org/download/b33829bc3c820d29/git/sniper.git
 

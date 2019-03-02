@@ -34,12 +34,13 @@ std::ofstream traceactivityL2;
 std::ofstream traceactivityL3;
 
 //Sarabjeet: [Calculate number of reads issued after refresh period expired] Records the number of times Reads are issued after Refresh Period has expired (L*.ReadsAfterRefreshPeriod)
-bool RECORD_ReadsAfterRefreshPeriod=true;	//Switch on to record in statistics
+bool RECORD_ReadsAfterRefreshPeriod=true;	//Switch on to record in statistics. Stats in "ReadsAfterRefreshPeriod"
 #define REFRESH_INTERVAL 1120000000000
 #define MAXLIMIT 18346744073601885002
 
-//Sarabjeet: [Calculate dissimilarity between consecutive writes]
-bool RECORD_Dissimilarity=false;
+//Sarabjeet: [Calculate dissimilarity between consecutive writes] NOTE: Works only for 64 Bytes Cachelines
+//NOTE: Does not record conflict writes. Doesn't consider multiple ways.
+bool RECORD_Dissimilarity=true;	//Switch on to record in statistics. Stats in "TotalDissimilarBits and TotalComparisons"
 
 // Define to allow private L2 caches not to take the stack lock.
 // Works in most cases, but seems to have some more bugs or race conditions, preventing it from being ready for prime time.
@@ -1341,17 +1342,28 @@ CacheCntlr::operationPermissibleinCache(
 void
 CacheCntlr::RecordDissimilarity(IntPtr addr)
 {
-	// int num_dis=0;
-	// long long unsigned int* addrp = (long long unsigned int*)addr;
-	// std::bitset<64> foo;
+	long long unsigned int* addrp = (long long unsigned int*)addr;
+	std::bitset<512> cacheline_data;
 
-	// for(int i=0; i<64; i++)
-	// {
-	// 	if(foo[i]!=(std::bitset<64>(static_cast<long long unsigned int>(*(addrp))))[i])
-	// 		num_dis++;
-	// }
-	// std::cout<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<", Num_Dis="<<num_dis<<std::endl;
+	for(int i=0; i<8 ; i++)		//Reading 8 times 64bits (8 Bytes) to store 64Bytes of data into cacheline_data
+		for(int j=0; j<64; j++)
+			cacheline_data[i*64 + j]=(std::bitset<64>(static_cast<long long unsigned int>(*(addrp + i))))[j];	//Storing actual data in temporary variable
 
+	std::unordered_map<IntPtr, std::bitset<512> >::iterator iter = m_master->dissimilarity.find(addr);
+	if ( iter == m_master->dissimilarity.end() )		//New entry
+		m_master->dissimilarity.insert(std::make_pair(addr, cacheline_data));
+	else
+	{
+		for(int i=0; i<512; i++)
+		{
+			if(cacheline_data[i]!=(iter->second)[i])		//Comparing with last written data
+			{
+				m_master->stats.TotalDissimilarBits++;
+			}
+		}
+		m_master->stats.TotalComparisons++;
+		iter->second=cacheline_data;
+	}
 }
 
 /*****************************************************************************
@@ -1613,6 +1625,10 @@ MYLOG("insertCacheBlock l%d @ %lx as %c (now %c)", m_mem_component, address, CSt
 	//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
    if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
 	   RecordWrite(address);
+
+    //Sarabjeet: [Calculate dissimilarity between consecutive writes]
+    if(RECORD_Dissimilarity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+    	RecordDissimilarity(address);
 
    //Sarabjeet: [Print Cache Activity] Print write activity when new block is brought to higher level of caches
    if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
@@ -1982,6 +1998,10 @@ assert(data_length==getCacheBlockSize());
 	//Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
    if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
 	   RecordWrite(address);
+
+    //Sarabjeet: [Calculate dissimilarity between consecutive writes]
+    if(RECORD_Dissimilarity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+    	RecordDissimilarity(address);
 
    //Sarabjeet: [Print Cache Activity] Print write activity when data is written to higher level of caches, if write-through
    if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))

@@ -19,6 +19,9 @@
 
 #include "boost/tuple/tuple.hpp"
 
+//Sarabjeet: [Calculate dissimilarity between consecutive writes]
+#include <bitset>
+
 class DramCntlrInterface;
 class ATD;
 
@@ -184,9 +187,15 @@ namespace ParametricDramDirectoryMSI
          std::unordered_map<IntPtr, SubsecondTime> map_lastwrites;
 
          struct {
-            //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining stats variable
+           //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining stats variable
            UInt64 ReadsAfterRefreshPeriod;
+           //Sarabjeet: [Calculate dissimilarity between consecutive writes]
+           UInt64 TotalDissimilarBits;
+           UInt64 TotalComparisons;
         } stats;
+
+        //Sarabjeet: [Calculate dissimilarity between consecutive writes] 512 bits (64 Bytes cacheline)
+        std::unordered_map<IntPtr, std::bitset<512> > dissimilarity;
 
          CacheMasterCntlr(String name, core_id_t core_id, UInt32 outstanding_misses)
             : m_cache(NULL)
@@ -202,6 +211,8 @@ namespace ParametricDramDirectoryMSI
             , m_prefetch_next(SubsecondTime::Zero())
          {
             registerStatsMetric(name, core_id, "ReadsAfterRefreshPeriod", &stats.ReadsAfterRefreshPeriod);
+            registerStatsMetric(name, core_id, "TotalDissimilarBits", &stats.TotalDissimilarBits);
+            registerStatsMetric(name, core_id, "TotalComparisons", &stats.TotalComparisons);
          }
          ~CacheMasterCntlr();
 
