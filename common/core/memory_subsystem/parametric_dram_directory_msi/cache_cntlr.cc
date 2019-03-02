@@ -15,6 +15,8 @@
 // #include <gzstream.h>
 #include <fstream>
 
+//sarab: Intptr address: all cache addresses in the cache_cntlr have offset bits: "000000". Offset and data_length is passed while accessing cacheline. Min Access Granularity = 1 Byte
+
 //Sarabjeet: [Print Cache Writes - Data] FORMAT: "Address CachelineData(64bytes)"
 //TODO: Create different files for different core, in case of private caches
 bool trace_WriteData=false;   //Switch on to generate write Data traces
@@ -35,6 +37,9 @@ std::ofstream traceactivityL3;
 bool RECORD_ReadsAfterRefreshPeriod=true;	//Switch on to record in statistics
 #define REFRESH_INTERVAL 1120000000000
 #define MAXLIMIT 18346744073601885002
+
+//Sarabjeet: [Calculate dissimilarity between consecutive writes]
+bool RECORD_Dissimilarity=false;
 
 // Define to allow private L2 caches not to take the stack lock.
 // Works in most cases, but seems to have some more bugs or race conditions, preventing it from being ready for prime time.
@@ -1330,6 +1335,26 @@ CacheCntlr::operationPermissibleinCache(
 }
 
 /*****************************************************************************
+//Sarabjeet: [Calculate dissimilarity between consecutive writes] 
+ *****************************************************************************/
+
+void
+CacheCntlr::RecordDissimilarity(IntPtr addr)
+{
+	// int num_dis=0;
+	// long long unsigned int* addrp = (long long unsigned int*)addr;
+	// std::bitset<64> foo;
+
+	// for(int i=0; i<64; i++)
+	// {
+	// 	if(foo[i]!=(std::bitset<64>(static_cast<long long unsigned int>(*(addrp))))[i])
+	// 		num_dis++;
+	// }
+	// std::cout<<std::bitset<64>(static_cast<long long unsigned int>(*(addrp)))<<", Num_Dis="<<num_dis<<std::endl;
+
+}
+
+/*****************************************************************************
 //Sarabjeet: [Print Cache Writes - Data] Function to print cache write data
  *****************************************************************************/
 
@@ -1460,17 +1485,17 @@ CacheCntlr::accessCache(
          if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
  	        RecordWrite(ca_address);
 
+ 	    //Sarabjeet: [Calculate dissimilarity between consecutive writes]
+ 	    if(RECORD_Dissimilarity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+ 	    	RecordDissimilarity(ca_address);
+
          //Sarabjeet: [Print Cache Activity] Print write activity of L1
          if(trace_CachelineActivity && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-         {
             PrintTrace_CacheActivity(ca_address,1);
-         }
 
       	//Sarabjeet: [Print Cache Writes - Data] Print all writes-data (64 Bytes of cacheline) to L1 cache (generally no writes to L1I)
          if(trace_WriteData && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
-         {
             PrintTrace_CacheWriteData(ca_address);
-         }
 
          // Write-through cache - Write the next level cache also
          if (m_cache_writethrough) {

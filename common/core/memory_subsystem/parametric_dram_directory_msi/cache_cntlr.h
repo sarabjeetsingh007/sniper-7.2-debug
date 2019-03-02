@@ -368,6 +368,9 @@ namespace ParametricDramDirectoryMSI
          //Sarabjeet: [Print Cache Writes - Data] Functions
          void PrintTrace_CacheWriteData(IntPtr);
 
+         //Sarabjeet: [Calculate dissimilarity between consecutive writes]
+         void RecordDissimilarity(IntPtr);
+
       public:
 
          CacheCntlr(MemComponent::component_t mem_component,
