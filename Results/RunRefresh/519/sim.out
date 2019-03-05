@@ -1,0 +1,58 @@
+                                     | Core 0      | Core 1      | Core 2      | Core 3      | Core 4      | Core 5      | Core 6      | Core 7     
+  Instructions                       |  2499999758 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+  Cycles                             |  2279910826 |  2279910826 |  2279910826 |  2279910826 |  2279910826 |  2279910826 |  2279910826 |  2279910826
+  IPC                                |        1.10 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00
+  Time (ns)                          |   670562008 |   670562008 |   670562008 |   670562008 |   670562008 |   670562008 |   670562008 |   670562008
+  Idle time (ns)                     |       41253 |   670562008 |   670562008 |   670562008 |   670562008 |   670562008 |   670562008 |   670562008
+  Idle time (%)                      |        0.0% |      100.0% |      100.0% |      100.0% |      100.0% |      100.0% |      100.0% |      100.0%
+Branch predictor stats               |             |             |             |             |             |             |             |            
+  num correct                        |    37950580 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+  num incorrect                      |      171154 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+  misprediction rate                 |       0.45% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00%
+  mpki                               |        0.07 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00
+TLB Summary                          |             |             |             |             |             |             |             |            
+  I-TLB                              |             |             |             |             |             |             |             |            
+    num accesses                     |   192514550 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num misses                       |           9 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00%
+    mpki                             |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00
+  D-TLB                              |             |             |             |             |             |             |             |            
+    num accesses                     |  1324298997 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num misses                       |      312700 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |       0.02% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00%
+    mpki                             |        0.13 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00
+  L2 TLB                             |             |             |             |             |             |             |             |            
+    num accesses                     |      312709 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num misses                       |      312619 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |      99.97% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00%
+    mpki                             |        0.13 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00
+Cache Summary                        |             |             |             |             |             |             |             |            
+  Cache L1-I                         |             |             |             |             |             |             |             |            
+    num cache accesses               |   192514550 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num cache misses                 |      544591 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |       0.28% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf%
+    mpki                             |        0.22 |         inf |         inf |         inf |         inf |         inf |         inf |         inf
+  Cache L1-D                         |             |             |             |             |             |             |             |            
+    num cache accesses               |  1324298997 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num cache misses                 |    27823282 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |       2.10% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf%
+    mpki                             |       11.13 |         inf |         inf |         inf |         inf |         inf |         inf |         inf
+  Cache L2                           |             |             |             |             |             |             |             |            
+    num cache accesses               |    28549288 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num cache misses                 |    18776884 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |      65.77% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf%
+    mpki                             |        7.51 |         inf |         inf |         inf |         inf |         inf |         inf |         inf
+  Cache L3                           |             |             |             |             |             |             |             |            
+    num cache accesses               |    18958299 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    num cache misses                 |    10900175 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+    miss rate                        |      57.50% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf% |        inf%
+    mpki                             |        4.36 |         inf |         inf |         inf |         inf |         inf |         inf |         inf
+DRAM summary                         |             |             |             |             |             |             |             |            
+  num dram accesses                  |    14907720 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+  average dram access latency (ns)   |      102.55 |         inf |         inf |         inf |         inf |         inf |         inf |         inf
+  average dram queueing delay        |        0.04 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00 |        0.00
+  average dram bandwidth utilization |       5.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00% |       0.00%
+Coherency Traffic                    |             |             |             |             |             |             |             |            
+  num loads from dram                |     7121048 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+  num loads from dram cache          |           0 |           0 |           0 |           0 |           0 |           0 |           0 |           0
+  num loads from remote cache        |           0 |           0 |           0 |           0 |           0 |           0 |           0 |           0

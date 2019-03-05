@@ -1347,7 +1347,7 @@ CacheCntlr::RecordDissimilarity(IntPtr addr)
 
 	for(int i=0; i<8 ; i++)		//Reading 8 times 64bits (8 Bytes) to store 64Bytes of data into cacheline_data
 		for(int j=0; j<64; j++)
-			cacheline_data[i*64 + j]=(std::bitset<64>(static_cast<long long unsigned int>(*(addrp + i))))[j];	//Storing actual data in temporary variable
+			cacheline_data[(7-i)*64 + (63-j)]=(std::bitset<64>(static_cast<long long unsigned int>(*(addrp + i))))[63-j];	//Storing actual data in temporary variable
 
 	std::unordered_map<IntPtr, std::bitset<512> >::iterator iter = m_master->dissimilarity.find(addr);
 	if ( iter == m_master->dissimilarity.end() )		//New entry
