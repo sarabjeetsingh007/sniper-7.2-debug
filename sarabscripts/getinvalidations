@@ -1,0 +1,22 @@
+# ./getinvalidations.sh $1
+# Valid arguments = "L1-D L1-I L2 L3"
+allbench="500 502 503 505 507 510 511 519 520 521 523 527 531 538 544 554 557 canneal dedup facesim ferret fluidanimate freqmine raytrace streamcluster parsechigh parsecmed parseclow"
+#allbench="500"
+
+cd ../Results/Run2B/
+for ben in $allbench
+do
+	if [[ $1 = "L1-D" || $1 = "L1-I" || $1 = "L2" || $1 = "L3" ]]
+	then	
+		cd $ben/
+	    num_invalids=` ../../../tools/dumpstats.py | grep "$1.ReadsAfterRefreshPeriod = " | awk '{print ($3+$4+$5+$6+$7+$8+$9+$10)}' `
+	    num_readsreq=` ../../../tools/dumpstats.py | grep "$1.loads = " | awk '{print ($3+$4+$5+$6+$7+$8+$9+$10)}' `
+	    echo "( ( $num_invalids * 100 ) / $num_readsreq )" | bc -l
+		cd ../
+	else
+		echo "Invalid argument. Usage: ./getinvalidations.sh cachelevel"
+		echo "Valid cachelevels = \"L1-D L1-I L2 L3\""
+	fi
+done
+cd ../../sarabscripts
+

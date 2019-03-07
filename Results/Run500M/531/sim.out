@@ -48,9 +48,9 @@ Cache Summary                        |            |            |            |   
     miss rate                        |     99.72% |       inf% |       inf% |       inf% |       inf% |       inf% |       inf% |       inf%
     mpki                             |      30.24 |        inf |        inf |        inf |        inf |        inf |        inf |        inf
 DRAM summary                         |            |            |            |            |            |            |            |           
-  num dram accesses                  |   30238373 |          0 |          0 |          0 |          0 |          0 |          0 |          0
-  average dram access latency (ns)   |  241521.84 |        inf |        inf |        inf |        inf |        inf |        inf |        inf
-  average dram queueing delay        |  241419.34 |       0.00 |       0.00 |       0.00 |       0.00 |       0.00 |       0.00 |       0.00
+  num dram accesses                  |   30238372 |          0 |          0 |          0 |          0 |          0 |          0 |          0
+  average dram access latency (ns)   |  241521.85 |        inf |        inf |        inf |        inf |        inf |        inf |        inf
+  average dram queueing delay        |  241419.35 |       0.00 |       0.00 |       0.00 |       0.00 |       0.00 |       0.00 |       0.00
   average dram bandwidth utilization |     33.00% |      0.00% |      0.00% |      0.00% |      0.00% |      0.00% |      0.00% |      0.00%
 Coherency Traffic                    |            |            |            |            |            |            |            |           
   num loads from dram                |      31476 |          0 |          0 |          0 |          0 |          0 |          0 |          0

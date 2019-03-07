@@ -189,6 +189,7 @@ namespace ParametricDramDirectoryMSI
          struct {
            //Sarabjeet: [Calculate number of reads issued after refresh period expired] Defining stats variable
            UInt64 ReadsAfterRefreshPeriod;
+           UInt64 Reads_sarab;//Stat to record total number of reads
            //Sarabjeet: [Calculate dissimilarity between consecutive writes]
            UInt64 TotalDissimilarBits;
            UInt64 TotalComparisons;
@@ -211,6 +212,7 @@ namespace ParametricDramDirectoryMSI
             , m_prefetch_next(SubsecondTime::Zero())
          {
             registerStatsMetric(name, core_id, "ReadsAfterRefreshPeriod", &stats.ReadsAfterRefreshPeriod);
+            registerStatsMetric(name, core_id, "Reads", &stats.Reads_sarab);
             registerStatsMetric(name, core_id, "TotalDissimilarBits", &stats.TotalDissimilarBits);
             registerStatsMetric(name, core_id, "TotalComparisons", &stats.TotalComparisons);
          }

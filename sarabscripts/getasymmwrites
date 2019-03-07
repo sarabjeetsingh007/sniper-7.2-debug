@@ -1,0 +1,21 @@
+# ./getasymmwrites.sh $1
+# Valid arguments = "L1-D L1-I L2 L3"
+allbench="500 502 503 505 507 510 511 519 520 521 523 527 531 538 544 554 557 canneal facesim ferret fluidanimate freqmine raytrace streamcluster"
+#allbench="500"
+
+cd ../Results/RunAsymWrites/
+for ben in $allbench
+do
+	if [[ $1 = "L1-D" || $1 = "L1-I" || $1 = "L2" || $1 = "L3" ]]
+	then	
+		cd $ben/
+	    t_bits=` ../../../tools/dumpstats.py | grep "$1.TotalDissimilarBits = " | awk '{print substr($3, 1, length($3)-1)}' `
+	    t_comp=` ../../../tools/dumpstats.py | grep "$1.TotalComparisons = " | awk '{print substr($3, 1, length($3)-1)}' `
+	    echo "( $t_bits / $t_comp )" | bc -l
+		cd ../
+	else
+		echo "Invalid argument. Usage: ./getasymmwrites.sh cachelevel"
+		echo "Valid cachelevels = \"L1-D L1-I L2 L3\""
+	fi
+done
+cd ../../sarabscripts
