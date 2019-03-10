@@ -10,7 +10,11 @@
 #include "shmem_perf_model.h"
 #include "log.h"
 #include "core.h"
+#include "stats.h"
 #include "fault_injection.h"
+
+//Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+#include <bitset>
 
 // Define to enable the set usage histogram
 //#define ENABLE_SET_USAGE_HIST
@@ -35,6 +39,13 @@ class Cache : public CacheBase
       UInt64* m_set_usage_hist;
       #endif
 
+      //Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+      std::unordered_map<UInt32, std::bitset<512> > lastwrittendata;    // <Way, LastDataWritten in that way>
+      struct {
+            UInt64 Asym_DissimilarBits;
+            UInt64 Asym_Comparisons;
+      } stats;
+
    public:
 
       // constructors/destructors
@@ -55,12 +66,17 @@ class Cache : public CacheBase
       bool invalidateSingleLine(IntPtr addr);
       CacheBlockInfo* accessSingleLine(IntPtr addr,
             access_t access_type, Byte* buff, UInt32 bytes, SubsecondTime now, bool update_replacement);
+      CacheBlockInfo* accessSingleLine(IntPtr addr,
+            access_t access_type, Byte* buff, UInt32 bytes, SubsecondTime now, bool update_replacement, UInt32 addr_offset);
       void insertSingleLine(IntPtr addr, Byte* fill_buff,
             bool* eviction, IntPtr* evict_addr,
             CacheBlockInfo* evict_block_info, Byte* evict_buff, SubsecondTime now, CacheCntlr *cntlr = NULL);
       CacheBlockInfo* peekSingleLine(IntPtr addr);
 
       CacheBlockInfo* peekBlock(UInt32 set_index, UInt32 way) const { return m_sets[set_index]->peekBlock(way); }
+
+      //Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+      void UpdateDissimlarityCounter(UInt32 way, IntPtr address);
 
       // Update Cache Counters
       void updateCounters(bool cache_hit);

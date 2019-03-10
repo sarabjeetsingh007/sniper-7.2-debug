@@ -40,7 +40,7 @@ bool RECORD_ReadsAfterRefreshPeriod=false;	//Switch on to record in statistics. 
 
 //Sarabjeet: [Calculate dissimilarity between consecutive writes] NOTE: Works only for 64 Bytes Cachelines
 //NOTE: Does not record conflict writes. Doesn't consider multiple ways.
-bool RECORD_Dissimilarity=true;	//Switch on to record in statistics. Stats in "TotalDissimilarBits and TotalComparisons"
+bool RECORD_Dissimilarity=false;	//Switch on to record in statistics. Stats in "TotalDissimilarBits and TotalComparisons"
 
 // Define to allow private L2 caches not to take the stack lock.
 // Works in most cases, but seems to have some more bugs or race conditions, preventing it from being ready for prime time.
@@ -1491,8 +1491,10 @@ CacheCntlr::accessCache(
 
       case Core::WRITE: 
       {
-         m_master->m_cache->accessSingleLine(ca_address + offset, Cache::STORE, data_buf, data_length,
-                                             getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD), update_replacement);
+         // m_master->m_cache->accessSingleLine(ca_address + offset, Cache::STORE, data_buf, data_length,
+         //                                    getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD), update_replacement); //ORIGINAL
+      	m_master->m_cache->accessSingleLine(ca_address + offset, Cache::STORE, data_buf, data_length,
+                                             getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_USER_THREAD), update_replacement, offset);	//Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
 
          //Sarabjeet: [Calculate number of reads issued after refresh period expired] Record Write
          if(RECORD_ReadsAfterRefreshPeriod && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
@@ -1990,8 +1992,10 @@ assert(data_length==getCacheBlockSize());
       if (data_buf)
          memcpy(m_master->m_evicting_buf + offset, data_buf, data_length);
    } else {
+      // __attribute__((unused)) SharedCacheBlockInfo* cache_block_info = (SharedCacheBlockInfo*) m_master->m_cache->accessSingleLine(
+         // address + offset, Cache::STORE, data_buf, data_length, getShmemPerfModel()->getElapsedTime(thread_num), false);	//ORIGINAL
       __attribute__((unused)) SharedCacheBlockInfo* cache_block_info = (SharedCacheBlockInfo*) m_master->m_cache->accessSingleLine(
-         address + offset, Cache::STORE, data_buf, data_length, getShmemPerfModel()->getElapsedTime(thread_num), false);
+         address + offset, Cache::STORE, data_buf, data_length, getShmemPerfModel()->getElapsedTime(thread_num), false, offset);	//Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
       LOG_ASSERT_ERROR(cache_block_info, "writethrough expected a hit at next-level cache but got miss");
       LOG_ASSERT_ERROR(cache_block_info->getCState() == CacheState::MODIFIED, "Got writeback for non-MODIFIED line");
    }

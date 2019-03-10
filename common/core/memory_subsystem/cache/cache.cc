@@ -2,6 +2,9 @@
 #include "cache.h"
 #include "log.h"
 
+//Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level] 
+bool RECORD_AsymmBits=true;  //Switch on to record in statistics. Stats in "Asym_DissimilarBits and Asym_Comparisons"
+
 // Cache class
 // constructors/destructors
 Cache::Cache(
@@ -24,12 +27,17 @@ Cache::Cache(
    m_cache_type(cache_type),
    m_fault_injector(fault_injector)
 {
+
    m_set_info = CacheSet::createCacheSetInfo(name, cfgname, core_id, replacement_policy, m_associativity);
    m_sets = new CacheSet*[m_num_sets];
    for (UInt32 i = 0; i < m_num_sets; i++)
    {
       m_sets[i] = CacheSet::createCacheSet(cfgname, core_id, replacement_policy, m_cache_type, m_associativity, m_blocksize, m_set_info);
    }
+
+   //Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+   registerStatsMetric(name, core_id, "Asym_DissimilarBits", &stats.Asym_DissimilarBits);
+   registerStatsMetric(name, core_id, "Asym_Comparisons", &stats.Asym_Comparisons);
 
    #ifdef ENABLE_SET_USAGE_HIST
    m_set_usage_hist = new UInt64[m_num_sets];
@@ -119,6 +127,86 @@ Cache::accessSingleLine(IntPtr addr, access_t access_type,
    return cache_block_info;
 }
 
+/*****************************************************************************
+//Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+ Overloaded function which also takes the address offset
+ *****************************************************************************/
+
+CacheBlockInfo*
+Cache::accessSingleLine(IntPtr addr, access_t access_type,
+      Byte* buff, UInt32 bytes, SubsecondTime now, bool update_replacement, UInt32 addr_offset)
+{
+   //assert((buff == NULL) == (bytes == 0));
+
+   IntPtr tag;
+   UInt32 set_index;
+   UInt32 line_index = -1;
+   UInt32 block_offset;
+
+   splitAddress(addr, tag, set_index, block_offset);
+
+   CacheSet* set = m_sets[set_index];
+   CacheBlockInfo* cache_block_info = set->find(tag, &line_index);
+
+   if (cache_block_info == NULL)
+      return NULL;
+
+   if (access_type == LOAD)
+   {
+      // NOTE: assumes error occurs in memory. If we want to model bus errors, insert the error into buff instead
+      if (m_fault_injector)
+         m_fault_injector->preRead(addr, set_index * m_associativity + line_index, bytes, (Byte*)m_sets[set_index]->getDataPtr(line_index, block_offset), now);
+
+      set->read_line(line_index, block_offset, buff, bytes, update_replacement);
+   }
+   else
+   {
+      set->write_line(line_index, block_offset, buff, bytes, update_replacement);
+
+      // NOTE: assumes error occurs in memory. If we want to model bus errors, insert the error into buff instead
+      if (m_fault_injector)
+         m_fault_injector->postWrite(addr, set_index * m_associativity + line_index, bytes, (Byte*)m_sets[set_index]->getDataPtr(line_index, block_offset), now);
+   }
+
+   //Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+   if(RECORD_AsymmBits && m_cache_type==3 && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+      UpdateDissimlarityCounter(line_index, (addr - addr_offset));
+
+   return cache_block_info;
+}
+
+/*****************************************************************************
+//Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+ Function to count number of dissimilar bits from last write. Updates Counters
+ *****************************************************************************/
+
+void
+Cache::UpdateDissimlarityCounter(UInt32 way, IntPtr address)
+{
+   long long unsigned int* addrp = (long long unsigned int*)address;
+   std::bitset<512> cacheline_data;
+
+   for(int i=0; i<8 ; i++)    //Reading 8 times 64bits (8 Bytes) to store 64Bytes of data into cacheline_data
+      for(int j=0; j<64; j++)
+         cacheline_data[(7-i)*64 + (63-j)]=(std::bitset<64>(static_cast<long long unsigned int>(*(addrp + i))))[63-j];  //Storing actual data in temporary variable
+
+   std::unordered_map<UInt32, std::bitset<512> >::iterator iter = lastwrittendata.find(way);
+   if ( iter == lastwrittendata.end() )    //New entry
+      lastwrittendata.insert(std::make_pair(way, cacheline_data));
+   else
+   {
+      for(int i=0; i<512; i++)
+      {
+         if(cacheline_data[i]!=(iter->second)[i])     //Comparing with last written data
+         {
+            stats.Asym_DissimilarBits++;
+         }
+      }
+      stats.Asym_Comparisons++;
+      iter->second=cacheline_data;
+   }
+}
+
 void
 Cache::insertSingleLine(IntPtr addr, Byte* fill_buff,
       bool* eviction, IntPtr* evict_addr,
@@ -143,6 +231,14 @@ Cache::insertSingleLine(IntPtr addr, Byte* fill_buff,
       LOG_ASSERT_ERROR(res != NULL, "Inserted line no longer there?");
 
       m_fault_injector->postWrite(addr, set_index * m_associativity + line_index, m_sets[set_index]->getBlockSize(), (Byte*)m_sets[set_index]->getDataPtr(line_index, 0), now);
+   }
+
+   //Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level]
+   if(RECORD_AsymmBits && m_cache_type==3 && (Sim()->getInstrumentationMode() != InstMode::CACHE_ONLY))
+   {
+      UInt32 way = -1;
+      __attribute__((unused)) CacheBlockInfo* blockinfo = m_sets[set_index]->find(tag, &way);
+      UpdateDissimlarityCounter(way, addr);
    }
 
    #ifdef ENABLE_SET_USAGE_HIST
