@@ -34,7 +34,7 @@ std::ofstream traceactivityL2;
 std::ofstream traceactivityL3;
 
 //Sarabjeet: [Calculate number of reads issued after refresh period expired] Records the number of times Reads are issued after Refresh Period has expired (L*.ReadsAfterRefreshPeriod)
-bool RECORD_ReadsAfterRefreshPeriod=false;	//Switch on to record in statistics. Stats in "ReadsAfterRefreshPeriod"
+bool RECORD_ReadsAfterRefreshPeriod=true;	//Switch on to record in statistics. Stats in "ReadsAfterRefreshPeriod"
 #define REFRESH_INTERVAL 1120000000000
 #define MAXLIMIT 18346744073601885002
 

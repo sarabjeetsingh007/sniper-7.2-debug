@@ -3,7 +3,7 @@
 #include "log.h"
 
 //Sarabjeet: [Calculate dissimilarity between consecutive writes - Cache Level] 
-bool RECORD_AsymmBits=true;  //Switch on to record in statistics. Stats in "Asym_DissimilarBits and Asym_Comparisons"
+bool RECORD_AsymmBits=false;  //Switch on to record in statistics. Stats in "Asym_DissimilarBits and Asym_Comparisons"
 
 // Cache class
 // constructors/destructors
